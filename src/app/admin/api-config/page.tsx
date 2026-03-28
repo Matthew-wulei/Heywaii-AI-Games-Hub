@@ -6,11 +6,7 @@ import { AdminHealthPanel } from "@/components/admin/admin-health-panel";
 
 export default async function AdminApiConfigPage() {
   const session = await auth();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const user = session?.user as any;
-  const isAdmin = user?.role === "ADMIN";
-
-  if (!isAdmin) {
+  if (session?.user?.role !== "ADMIN") {
     redirect("/");
   }
 

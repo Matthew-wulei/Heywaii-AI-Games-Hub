@@ -5,8 +5,7 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 
 export async function Header() {
   const session = await auth();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const balance = session?.user ? (session.user as any).balance || 0 : 0;
+  const balance = session?.user?.balance ?? 0;
 
   return (
     <header className="sticky top-0 z-30 h-20 w-full bg-background-paper/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6 md:px-8">

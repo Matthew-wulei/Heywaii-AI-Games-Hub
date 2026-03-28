@@ -4,12 +4,11 @@ import { Bot, ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CrawlerRunButton } from "./crawler-run-button";
+import { CrawlerRunAllButton } from "./crawler-run-all-button";
 
 export default async function AdminCrawlerPage() {
   const session = await auth();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const user = session?.user as any;
-  if (user?.role !== "ADMIN") {
+  if (session?.user?.role !== "ADMIN") {
     redirect("/");
   }
 
@@ -32,11 +31,15 @@ export default async function AdminCrawlerPage() {
           <div>
             <h1 className="text-3xl font-bold text-white">Crawler</h1>
             <p className="text-text-secondary text-sm mt-1">
-              MVP import: fetch a source URL, parse a title, create a pending game. Configure sources in the
-              database or seed script.
+              Fetch entry URLs, parse titles, create pending games. Category is inferred from title keywords.
+              Daily batch: Vercel Cron hits{" "}
+              <code className="text-text-secondary">/api/cron/crawler</code> with{" "}
+              <code className="text-text-secondary">Authorization: Bearer CRON_SECRET</code> (set{" "}
+              <code className="text-text-secondary">CRON_SECRET</code> in Vercel).
             </p>
           </div>
         </div>
+        <CrawlerRunAllButton />
       </div>
 
       <div className="space-y-4">

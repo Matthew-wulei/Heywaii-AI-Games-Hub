@@ -1,9 +1,17 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Coins, Key, History, Star, Edit3, Save, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type GameSummary = {
+  slug: string;
+  title: string;
+  coverImage: string;
+  shortDescription: string;
+};
 const TABS = [
   { id: "assets", label: "Assets & Keys", icon: Coins },
   { id: "history", label: "Play History", icon: History },
@@ -16,6 +24,30 @@ export default function ProfilePage() {
   const [apiKey, setApiKey] = useState("");
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
+  const [historyItems, setHistoryItems] = useState<{ playedAt: string; game: GameSummary }[]>([]);
+  const [favoriteItems, setFavoriteItems] = useState<{ id: string; game: GameSummary }[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+
+  useEffect(() => {
+    if (status !== "authenticated" || activeTab !== "history") return;
+    setHistoryLoading(true);
+    fetch("/api/user/play-history", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setHistoryItems(Array.isArray(d.items) ? d.items : []))
+      .catch(() => setHistoryItems([]))
+      .finally(() => setHistoryLoading(false));
+  }, [activeTab, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || activeTab !== "favorites") return;
+    setFavoritesLoading(true);
+    fetch("/api/user/favorites", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setFavoriteItems(Array.isArray(d.items) ? d.items : []))
+      .catch(() => setFavoriteItems([]))
+      .finally(() => setFavoritesLoading(false));
+  }, [activeTab, status]);
 
   if (status === "loading") {
     return <div className="animate-pulse flex items-center justify-center h-64 text-text-muted">Loading profile...</div>;
@@ -26,8 +58,7 @@ export default function ProfilePage() {
   }
 
   const user = session?.user;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const balance = user ? (user as any).balance || 0 : 0;
+  const balance = user?.balance ?? 0;
 
   const handleSaveKey = async () => {
     const trimmed = apiKey.trim();
@@ -208,25 +239,80 @@ export default function ProfilePage() {
 
         {/* History Tab */}
         {activeTab === "history" && (
-          <div className="animate-in fade-in duration-300">
-             <div className="flex items-center justify-center h-48 text-text-muted">
-               <div className="text-center">
-                 <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                 <p>No play history yet.</p>
-               </div>
-             </div>
+          <div className="animate-in fade-in duration-300 space-y-4">
+            {historyLoading ? (
+              <p className="text-text-muted text-sm">Loading…</p>
+            ) : historyItems.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-text-muted">
+                <div className="text-center">
+                  <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No play history yet.</p>
+                </div>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {historyItems.map((row) => (
+                  <li key={`${row.playedAt}-${row.game.slug}`}>
+                    <Link
+                      href={`/game/${row.game.slug}`}
+                      className="flex gap-4 p-4 rounded-xl bg-background-elevated border border-white/5 hover:border-primary/30 transition-colors"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={row.game.coverImage}
+                        alt=""
+                        className="w-20 h-14 object-cover rounded-lg flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium text-white truncate">{row.game.title}</p>
+                        <p className="text-xs text-text-muted mt-1">
+                          {new Date(row.playedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
-        {/* Favorites Tab */}
         {activeTab === "favorites" && (
-          <div className="animate-in fade-in duration-300">
-             <div className="flex items-center justify-center h-48 text-text-muted">
-               <div className="text-center">
-                 <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                 <p>You haven&apos;t favorited any games yet.</p>
-               </div>
-             </div>
+          <div className="animate-in fade-in duration-300 space-y-4">
+            {favoritesLoading ? (
+              <p className="text-text-muted text-sm">Loading…</p>
+            ) : favoriteItems.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-text-muted">
+                <div className="text-center">
+                  <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>You haven&apos;t favorited any games yet.</p>
+                </div>
+              </div>
+            ) : (
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {favoriteItems.map((row) => (
+                  <li key={row.id}>
+                    <Link
+                      href={`/game/${row.game.slug}`}
+                      className="flex gap-3 p-4 rounded-xl bg-background-elevated border border-white/5 hover:border-primary/30 transition-colors h-full"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={row.game.coverImage}
+                        alt=""
+                        className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium text-white line-clamp-2">{row.game.title}</p>
+                        <p className="text-xs text-text-secondary line-clamp-2 mt-1">
+                          {row.game.shortDescription}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

@@ -1,5 +1,4 @@
 import { Coins, Users, Gamepad2, Activity } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export type PlatformStatValues = {
   todayCoins: string;
@@ -7,9 +6,6 @@ export type PlatformStatValues = {
   activeGames: string;
   onlineNow: string;
 };
-
-const defaultTrends = ["+12.5%", "+3.2%", "+1", "-2.1%"] as const;
-const trendUpFlags = [true, true, true, false] as const;
 
 export function DataPanel({
   values,
@@ -27,30 +23,22 @@ export function DataPanel({
     {
       label: "Today's Coins",
       value: v.todayCoins,
-      trend: defaultTrends[0],
       icon: Coins,
-      trendUp: trendUpFlags[0],
     },
     {
       label: "Total Users",
       value: v.totalUsers,
-      trend: defaultTrends[1],
       icon: Users,
-      trendUp: trendUpFlags[1],
     },
     {
       label: "Active Games",
       value: v.activeGames,
-      trend: defaultTrends[2],
       icon: Gamepad2,
-      trendUp: trendUpFlags[2],
     },
     {
       label: "Online Now",
       value: v.onlineNow,
-      trend: defaultTrends[3],
       icon: Activity,
-      trendUp: trendUpFlags[3],
     },
   ];
 
@@ -68,17 +56,7 @@ export function DataPanel({
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-text-primary">
-              {stat.value}
-            </span>
-            <span
-              className={cn(
-                "text-xs font-medium",
-                stat.trendUp ? "text-status-success" : "text-status-error"
-              )}
-            >
-              {stat.trend}
-            </span>
+            <span className="text-2xl font-bold text-text-primary">{stat.value}</span>
           </div>
         </div>
       ))}

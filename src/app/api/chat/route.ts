@@ -9,10 +9,19 @@ export const maxDuration = 30;
 const SYSTEM_PROMPT =
   "You are an AI character in an immersive narrative game. Stay in character, keep responses concise, and drive the story forward. Offer clear choices when appropriate.";
 
-const OFFICIAL_MODELS: Record<string, { openaiModel: string; defaultCost: number }> = {
-  "gpt-4o": { openaiModel: "gpt-4o-mini", defaultCost: 10 },
-  "claude-3-5": { openaiModel: "gpt-3.5-turbo", defaultCost: 15 },
-  "gemini-1-5": { openaiModel: "gpt-3.5-turbo", defaultCost: 12 },
+/** Client-facing model ids → actual OpenAI-compatible model id used on the server. */
+const OFFICIAL_MODELS: Record<string, { openaiModel: string }> = {
+  "gpt-4o": { openaiModel: "gpt-4o-mini" },
+  "claude-3-5": { openaiModel: "gpt-3.5-turbo" },
+  "gemini-1-5": { openaiModel: "gpt-3.5-turbo" },
+};
+
+/**
+ * Bill by backend model only — client cannot pick a cheaper UI label for the same backend route.
+ */
+const COST_BY_BACKEND_MODEL: Record<string, number> = {
+  "gpt-4o-mini": 10,
+  "gpt-3.5-turbo": 8,
 };
 
 async function resolveOpenAIApiKey(): Promise<string> {
@@ -82,8 +91,11 @@ export async function POST(req: Request) {
     const config = await prisma.officialApiConfig.findUnique({
       where: { provider: "OPENAI" },
     });
+    const backendModel = spec.openaiModel;
     const cost =
-      config && config.isActive ? config.cost : spec.defaultCost;
+      config?.isActive === true
+        ? config.cost
+        : (COST_BY_BACKEND_MODEL[backendModel] ?? 10);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.balance < cost) {
