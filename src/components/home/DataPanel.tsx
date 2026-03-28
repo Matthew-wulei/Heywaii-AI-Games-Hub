@@ -1,38 +1,59 @@
 import { Coins, Users, Gamepad2, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const stats = [
-  {
-    label: "Today's Coins",
-    value: "24.5k",
-    trend: "+12.5%",
-    icon: Coins,
-    trendUp: true,
-  },
-  {
-    label: "Total Users",
-    value: "1.2M",
-    trend: "+3.2%",
-    icon: Users,
-    trendUp: true,
-  },
-  {
-    label: "Active Games",
-    value: "842",
-    trend: "+14",
-    icon: Gamepad2,
-    trendUp: true,
-  },
-  {
-    label: "Online Now",
-    value: "15.4k",
-    trend: "-2.1%",
-    icon: Activity,
-    trendUp: false,
-  },
-];
+export type PlatformStatValues = {
+  todayCoins: string;
+  totalUsers: string;
+  activeGames: string;
+  onlineNow: string;
+};
 
-export function DataPanel() {
+const defaultTrends = ["+12.5%", "+3.2%", "+1", "-2.1%"] as const;
+const trendUpFlags = [true, true, true, false] as const;
+
+export function DataPanel({
+  values,
+}: {
+  values?: PlatformStatValues;
+}) {
+  const v = values ?? {
+    todayCoins: "—",
+    totalUsers: "—",
+    activeGames: "—",
+    onlineNow: "—",
+  };
+
+  const stats = [
+    {
+      label: "Today's Coins",
+      value: v.todayCoins,
+      trend: defaultTrends[0],
+      icon: Coins,
+      trendUp: trendUpFlags[0],
+    },
+    {
+      label: "Total Users",
+      value: v.totalUsers,
+      trend: defaultTrends[1],
+      icon: Users,
+      trendUp: trendUpFlags[1],
+    },
+    {
+      label: "Active Games",
+      value: v.activeGames,
+      trend: defaultTrends[2],
+      icon: Gamepad2,
+      trendUp: trendUpFlags[2],
+    },
+    {
+      label: "Online Now",
+      value: v.onlineNow,
+      trend: defaultTrends[3],
+      icon: Activity,
+      trendUp: trendUpFlags[3],
+    },
+  ];
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       {stats.map((stat) => (

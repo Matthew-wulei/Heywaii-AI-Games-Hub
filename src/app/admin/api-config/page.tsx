@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
-import { ShieldAlert, Server, Save, CheckCircle2, Power, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { ShieldAlert, Server, Save, CheckCircle2, Power } from "lucide-react";
 import { auth } from "@/auth";
+import { AdminHealthPanel } from "@/components/admin/admin-health-panel";
 
 export default async function AdminApiConfigPage() {
   const session = await auth();
@@ -21,6 +23,9 @@ export default async function AdminApiConfigPage() {
             Admin Control Panel
           </h1>
           <p className="text-text-secondary">Configure official platform API keys and billing rules.</p>
+          <Link href="/admin/crawler" className="text-sm text-primary hover:underline mt-2 inline-block">
+            Crawler admin →
+          </Link>
         </div>
         <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-status-success/10 border border-status-success/20 rounded-xl text-status-success font-medium text-sm">
           <div className="w-2 h-2 rounded-full bg-status-success animate-pulse" />
@@ -130,31 +135,7 @@ export default async function AdminApiConfigPage() {
 
         {/* Right Column: Global Settings & Stats */}
         <div className="space-y-6">
-          <div className="bg-background-paper rounded-2xl border border-white/5 p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-3">API Health Check</h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-background-elevated border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-status-success" />
-                  <span className="text-sm font-medium text-text-primary">OpenAI API</span>
-                </div>
-                <span className="text-xs text-text-muted">12ms ping</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 rounded-xl bg-background-elevated border border-white/5 opacity-50">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-text-muted" />
-                  <span className="text-sm font-medium text-text-primary">Anthropic API</span>
-                </div>
-                <span className="text-xs text-text-muted">Offline</span>
-              </div>
-            </div>
-            
-            <button className="w-full mt-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-text-secondary text-sm font-medium transition-colors flex items-center justify-center gap-2">
-              <RefreshCw className="w-4 h-4" /> Run Diagnostics
-            </button>
-          </div>
+          <AdminHealthPanel />
           
           <div className="bg-background-paper rounded-2xl border border-white/5 p-6 shadow-xl">
              <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-3">Cost Management</h3>

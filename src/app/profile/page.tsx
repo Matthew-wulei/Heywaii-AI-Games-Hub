@@ -4,8 +4,6 @@ import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { Coins, Key, History, Star, Edit3, Save, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GameCard } from "@/components/home/GameCard";
-
 const TABS = [
   { id: "assets", label: "Assets & Keys", icon: Coins },
   { id: "history", label: "Play History", icon: History },
@@ -31,11 +29,37 @@ export default function ProfilePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const balance = user ? (user as any).balance || 0 : 0;
 
-  const handleSaveKey = () => {
-    // Mock save logic
-    setIsEditingKey(false);
-    setKeySaved(true);
-    setTimeout(() => setKeySaved(false), 3000);
+  const handleSaveKey = async () => {
+    const trimmed = apiKey.trim();
+    if (trimmed.length < 8) return;
+    try {
+      const r = await fetch("/api/user/api-key", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "DEEPSEEK", key: trimmed }),
+      });
+      if (!r.ok) {
+        setKeySaved(false);
+        return;
+      }
+      setIsEditingKey(false);
+      setApiKey("");
+      setKeySaved(true);
+      setTimeout(() => setKeySaved(false), 3000);
+    } catch {
+      setKeySaved(false);
+    }
+  };
+
+  const handleClearDeepseek = async () => {
+    try {
+      await fetch("/api/user/api-key?provider=DEEPSEEK", { method: "DELETE", credentials: "include" });
+      setApiKey("");
+      setIsEditingKey(false);
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
@@ -113,35 +137,52 @@ export default function ProfilePage() {
                 <div className="bg-background-elevated p-4 rounded-xl border border-white/10">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-semibold text-white flex items-center gap-2">
-                      <Key className="w-4 h-4 text-text-muted" /> OpenAI API Key
+                      <Key className="w-4 h-4 text-text-muted" /> DeepSeek API Key
                     </label>
-                    {keySaved && <span className="text-xs text-status-success flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Saved successfully</span>}
+                    {keySaved && (
+                      <span className="text-xs text-status-success flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Saved successfully
+                      </span>
+                    )}
                   </div>
-                  
-                  <div className="flex gap-3">
+                  <p className="text-xs text-text-muted mb-3">
+                    Used for the &quot;DeepSeek (Custom Key)&quot; model in play mode. Official models use your
+                    platform balance instead.
+                  </p>
+
+                  <div className="flex flex-wrap gap-3">
                     <input
                       type={isEditingKey ? "text" : "password"}
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
                       disabled={!isEditingKey}
                       placeholder="sk-..."
-                      className="flex-1 bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:ring-1 ring-primary disabled:opacity-50 transition-all font-mono"
+                      className="flex-1 min-w-[200px] bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-text-primary focus:ring-1 ring-primary disabled:opacity-50 transition-all font-mono"
                     />
                     {isEditingKey ? (
-                      <button 
-                        onClick={handleSaveKey}
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveKey()}
                         className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors flex items-center gap-2"
                       >
                         <Save className="w-4 h-4" /> Save
                       </button>
                     ) : (
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => setIsEditingKey(true)}
                         className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors"
                       >
-                        Edit
+                        Add / replace
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => void handleClearDeepseek()}
+                      className="px-4 py-2 rounded-lg bg-white/5 text-text-secondary text-sm hover:bg-white/10 transition-colors"
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
 

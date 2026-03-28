@@ -1,18 +1,10 @@
 import Link from "next/link";
 import { Calendar, User, ArrowRight } from "lucide-react";
+import { getPublishedArticles } from "@/lib/queries/content";
 
-const MOCK_BLOGS = Array.from({ length: 6 }).map((_, i) => ({
-  id: `blog-${i}`,
-  slug: `blog-post-${i}`,
-  title: `How to Create Compelling AI Characters - Part ${i + 1}`,
-  excerpt: "Learn the secrets of prompting and persona design to make your AI characters truly come alive in your next text-based adventure game.",
-  author: "HeyWaii Team",
-  date: "Mar 24, 2026",
-  category: "Tutorial",
-  image: `https://images.unsplash.com/photo-${1550751827 + i}-4b4d4de81156?q=80&w=800&auto=format&fit=crop`
-}));
+export default async function BlogPage() {
+  const posts = await getPublishedArticles(24);
 
-export default function BlogPage() {
   return (
     <div className="flex flex-col w-full max-w-[1200px] mx-auto pb-12">
       <div className="mb-10 text-center md:text-left">
@@ -23,45 +15,71 @@ export default function BlogPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {MOCK_BLOGS.map((post) => (
-          <article key={post.id} className="group bg-background-paper rounded-2xl border border-white/5 overflow-hidden hover:border-primary/50 transition-all duration-300 shadow-lg">
-            <Link href={`/blog/${post.slug}`}>
-              <div className="relative aspect-video overflow-hidden bg-background-elevated">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={post.image} 
-                  alt={post.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-medium rounded-full border border-white/10">
-                    {post.category}
-                  </span>
+        {posts.map((post) => {
+          const plain = post.content.replace(/^#+\s.*/gm, "").trim();
+          const excerpt = plain.length > 180 ? `${plain.slice(0, 180)}…` : plain;
+          const dateStr = post.publishedAt
+            ? post.publishedAt.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "";
+          const image =
+            post.coverImage ||
+            "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop";
+
+          return (
+            <article
+              key={post.id}
+              className="group bg-background-paper rounded-2xl border border-white/5 overflow-hidden hover:border-primary/50 transition-all duration-300 shadow-lg"
+            >
+              <Link href={`/blog/${post.slug}`}>
+                <div className="relative aspect-video overflow-hidden bg-background-elevated">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image}
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {post.category && (
+                    <div className="absolute top-4 left-4">
+                      <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-medium rounded-full border border-white/10">
+                        {post.category}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-center gap-4 text-xs text-text-muted mb-3">
-                  <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {post.date}</span>
-                  <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> {post.author}</span>
+
+                <div className="p-6">
+                  <div className="flex items-center gap-4 text-xs text-text-muted mb-3">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" /> {dateStr}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" /> HeyWaii
+                    </span>
+                  </div>
+
+                  <h2 className="text-xl font-bold text-white mb-3 group-hover:text-primary transition-colors line-clamp-2">
+                    {post.title}
+                  </h2>
+
+                  <p className="text-text-secondary text-sm mb-6 line-clamp-3">{excerpt}</p>
+
+                  <div className="flex items-center text-primary text-sm font-medium group-hover:gap-2 transition-all">
+                    Read Article <ArrowRight className="w-4 h-4 ml-1" />
+                  </div>
                 </div>
-                
-                <h2 className="text-xl font-bold text-white mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                  {post.title}
-                </h2>
-                
-                <p className="text-text-secondary text-sm mb-6 line-clamp-3">
-                  {post.excerpt}
-                </p>
-                
-                <div className="flex items-center text-primary text-sm font-medium group-hover:gap-2 transition-all">
-                  Read Article <ArrowRight className="w-4 h-4 ml-1" />
-                </div>
-              </div>
-            </Link>
-          </article>
-        ))}
+              </Link>
+            </article>
+          );
+        })}
       </div>
+
+      {posts.length === 0 && (
+        <p className="text-text-muted text-center py-16">No articles published yet.</p>
+      )}
     </div>
   );
 }

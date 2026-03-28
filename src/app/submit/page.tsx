@@ -11,6 +11,7 @@ export default function SubmitPage() {
     fullDescription: "",
     category: "",
     tags: "",
+    coverImageUrl: "",
     coverImage: null as File | null,
   });
   
@@ -33,21 +34,37 @@ export default function SubmitPage() {
     setIsSubmitting(true);
     setSubmitStatus("idle");
     
-    // Validate required fields
-    if (!formData.title || !formData.shortDescription || !formData.category) {
+    if (
+      !formData.title ||
+      formData.shortDescription.trim().length < 10 ||
+      !formData.category ||
+      !formData.coverImageUrl.trim()
+    ) {
       setSubmitStatus("error");
       setIsSubmitting(false);
       return;
     }
 
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log("Submitting game:", formData);
+      const r = await fetch("/api/games/submit", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.title.trim(),
+          url: formData.url.trim() || undefined,
+          shortDescription: formData.shortDescription.trim(),
+          fullDescription: formData.fullDescription.trim() || undefined,
+          categorySlug: formData.category,
+          coverImage: formData.coverImageUrl.trim(),
+          tags: formData.tags.trim() || undefined,
+        }),
+      });
+      if (!r.ok) {
+        setSubmitStatus("error");
+        return;
+      }
       setSubmitStatus("success");
-      
-      // Reset form
       setFormData({
         title: "",
         url: "",
@@ -55,9 +72,10 @@ export default function SubmitPage() {
         fullDescription: "",
         category: "",
         tags: "",
+        coverImageUrl: "",
         coverImage: null,
       });
-    } catch (error) {
+    } catch {
       setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -182,38 +200,52 @@ export default function SubmitPage() {
                 />
               </div>
 
-              {/* Cover Image Upload */}
+              <div>
+                <label
+                  htmlFor="coverImageUrl"
+                  className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2"
+                >
+                  <ImageIcon className="w-4 h-4" /> Cover image URL *
+                </label>
+                <input
+                  type="url"
+                  id="coverImageUrl"
+                  name="coverImageUrl"
+                  required
+                  value={formData.coverImageUrl}
+                  onChange={handleChange}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full bg-background-elevated border border-white/10 rounded-xl px-4 py-3 text-text-primary focus:ring-2 ring-primary/50 focus:border-primary transition-all outline-none"
+                />
+                <p className="text-xs text-text-muted mt-2">
+                  Use a public HTTPS image URL (e.g. Unsplash). File upload to storage is not wired yet.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4" /> Cover Image *
+                  <Upload className="w-4 h-4" /> Local preview (optional)
                 </label>
-                
                 <div className="mt-2 flex justify-center rounded-2xl border-2 border-dashed border-white/20 hover:border-primary/50 transition-colors px-6 py-10 bg-background-elevated/50 group cursor-pointer relative">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    accept="image/*"
                     onChange={handleImageChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
                   <div className="text-center">
                     {formData.coverImage ? (
                       <div className="space-y-2">
                         <CheckCircle2 className="mx-auto h-12 w-12 text-status-success" />
                         <div className="text-sm font-medium text-status-success">
-                          Image selected: {formData.coverImage.name}
+                          {formData.coverImage.name}
                         </div>
-                        <p className="text-xs text-text-muted">Click or drag to replace</p>
+                        <p className="text-xs text-text-muted">For your reference only</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <Upload className="mx-auto h-12 w-12 text-text-muted group-hover:text-primary transition-colors" />
-                        <div className="flex text-sm text-text-secondary justify-center">
-                          <span className="relative rounded-md font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 hover:text-primary-hover">
-                            <span>Upload a file</span>
-                          </span>
-                          <p className="pl-1">or drag and drop</p>
-                        </div>
-                        <p className="text-xs text-text-muted">PNG, JPG, WEBP up to 5MB</p>
+                        <p className="text-sm text-text-secondary">Optional local file (not uploaded)</p>
                       </div>
                     )}
                   </div>

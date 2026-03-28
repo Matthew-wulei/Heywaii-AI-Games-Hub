@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Search, Bell, User, Coins } from "lucide-react";
+import { Search, User, Coins } from "lucide-react";
 import { auth, signIn, signOut } from "@/auth";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 export async function Header() {
   const session = await auth();
@@ -43,11 +44,7 @@ export async function Header() {
               </span>
             </div>
 
-            {/* Notifications */}
-            <button className="relative p-2 text-text-secondary hover:text-text-primary transition-colors rounded-full hover:bg-white/5">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-status-error rounded-full ring-2 ring-background-paper"></span>
-            </button>
+            <NotificationBell />
 
             {/* User Profile Dropdown Placeholder */}
             <form action={async () => {
