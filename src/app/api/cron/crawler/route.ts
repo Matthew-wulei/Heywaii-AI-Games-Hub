@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { importAllCrawlerSources } from "@/lib/crawler/import-from-source";
+import { runAllScrapers } from "@/lib/crawler/orchestrator";
 
 /**
  * Vercel Cron: set CRON_SECRET in project env and add to vercel.json crons.
@@ -15,6 +15,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const results = await importAllCrawlerSources();
-  return NextResponse.json({ ok: true, ranAt: new Date().toISOString(), results });
+  const summary = await runAllScrapers();
+  return NextResponse.json({ ok: true, ...summary });
 }

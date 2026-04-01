@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/auth-api";
-import { importAllCrawlerSources } from "@/lib/crawler/import-from-source";
+import { runAllScrapers } from "@/lib/crawler/orchestrator";
 
 export async function POST() {
   const admin = await requireAdminSession();
@@ -8,6 +8,6 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const results = await importAllCrawlerSources();
-  return NextResponse.json({ ok: true, results });
+  const summary = await runAllScrapers();
+  return NextResponse.json({ ok: true, ...summary });
 }
