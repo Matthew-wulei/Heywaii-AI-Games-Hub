@@ -122,14 +122,31 @@ model Game {
   shortDescription String
   fullDescription  String        @db.Text
   coverImage       String
+  screenshots      Json?         // String[] stored as JSON array
   categorySlug     String
   status           ContentStatus @default(PENDING)
   source           ContentSource @default(UGC)
   sourceUrl        String?
+  externalId       String?       // Original ID from crawler source, for incremental updates
+
+  // Game metadata
+  developer        String?       // Developer / team name
+  developerUrl     String?       // Developer official website
+  releaseDate      DateTime?     // Game release date
+  platform         Json?         // String[] e.g. ["Web", "iOS", "Android"]
+  language         Json?         // String[] e.g. ["en", "zh", "ja"]
+  isFree           Boolean       @default(true)
+  pricingNote      String?       // e.g. "Free + In-App Purchase"
 
   // Stats
-  plays Int @default(0)
-  likes Int @default(0)
+  plays       Int   @default(0)
+  likes       Int   @default(0)
+  rating      Float @default(0)  // Average rating 0-5
+  ratingCount Int   @default(0)  // Number of ratings
+
+  // Editorial
+  featured      Boolean @default(false)
+  featuredOrder Int?    // Lower = higher priority on homepage
 
   authorId String? // Nullable if from crawler
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
