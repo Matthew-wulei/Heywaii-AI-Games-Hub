@@ -1,0 +1,53 @@
+# 项目上下文
+当前项目是 HeyWaii Gameshub 的 AI 聊天模块，核心是对标 CrushOn.AI 的角色详情页与沉浸式聊天体验。
+
+# 核心技术栈
+- 框架：React 18 + Next.js 14 (App Router)
+- 语言：TypeScript (严格模式)
+- 样式：Tailwind CSS (响应式优先，移动端优先)
+- 状态管理：Zustand (全局状态) + React Context (局部状态)
+- 渲染库：react-markdown + remark-gfm (处理 AI 消息渲染)
+- 图标：Lucide React 或 Heroicons
+
+# 编码规范与代码风格
+- 组件：使用函数式组件 (Functional Components) 和 React Hooks
+- 命名约定：
+  - 组件名：PascalCase (如 `ChatSettingModal`)
+  - 变量与函数：camelCase (如 `handleSendMessage`)
+  - 常量：UPPER_SNAKE_CASE (如 `MAX_TOKENS`)
+  - 接口与类型：PascalCase，通常以 `I` 或直接使用描述性名词 (如 `ChatMessage`)
+- 导入顺序：React/Next 核心库 -> 第三方库 -> 内部组件 -> 类型 -> 样式/工具函数
+- 避免使用内联样式，所有样式必须通过 Tailwind classes 实现
+
+# 业务功能特定规范 (参考 CrushOn_Chat_UI_Specs.md)
+
+## 1. 消息渲染规范 (Message Rendering)
+- AI 消息必须通过 `react-markdown` 渲染，不可直接使用纯文本。
+- 必须实现自定义渲染组件 (Component Overrides)：
+  - `em` (斜体)：使用 `text-gray-400 not-italic`，用于渲染叙事动作。
+  - `strong` (粗体)：使用 `text-white font-semibold`，用于渲染角色名称。
+  - `p` (段落)：增加适当的底部边距 `mb-3`，保证阅读节奏。
+- 思维泡泡处理：识别以 `💭` 开头的段落，并套用专门的 `ThoughtBubble` 样式容器 (如半透明背景、虚线边框)。
+
+## 2. 模型调用规范 (Model Invocation)
+- 前后端交互通过统一的 API 接口 (如 `/api/chat`) 进行，接口设计必须与具体的大模型提供商解耦。
+- 请求体 (Payload) 必须包含以下字段：
+  - `model_id`: 当前选中的模型标识 (如 "ultra-claude-4-sonnet")
+  - `temperature`: 范围 0.0 ~ 1.0 (默认 0.70)
+  - `content_diversity`: 范围 0.0 ~ 1.0 (默认 0.70)
+  - `max_tokens`: 范围 175 ~ 650
+- 状态管理：用户的模型偏好设置必须通过 Zustand 持久化存储 (localStorage)。
+
+## 3. UI/UX 规范
+- 沉浸式背景：聊天页背景需使用 `backdrop-filter: blur()` 和深色半透明遮罩，确保文字可读性。
+- 响应式侧边栏：
+  - 桌面端：左侧导航和右侧面板支持折叠/展开。
+  - 移动端：侧边栏默认隐藏，通过汉堡菜单 (Hamburger Menu) 唤出。
+- 内容安全：涉及敏感图片或内容的组件，必须预留过滤阈值判断和年龄确认弹窗 (18+ 确认) 的逻辑。
+
+# Cursor 生成行为准则
+- 每次生成代码前，必须仔细阅读相关的文档规范。
+- 优先生成可复用的原子组件，再组合成复杂模块。
+- 始终包含完整的 TypeScript 类型定义。
+- 不要省略 CSS 类名，确保 Tailwind 样式完整。
+- 复杂组件必须拆分，不要在一个文件里写超过 300 行代码。
