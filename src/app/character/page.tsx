@@ -1,20 +1,42 @@
 import Link from "next/link";
-import { CharacterCard } from "@/components/character/CharacterCard";
-import { getPublishedCharacters, getPublishedCharacterCategorySlugs } from "@/lib/queries/content";
+import { Suspense } from "react";
+import { Pagination } from "@/components/ui/Pagination";
+import { InfiniteCharacterList } from "@/components/character/InfiniteCharacterList";
+import { CategoryFilter } from "@/components/character/CategoryFilter";
+import { getPublishedCharacters, getPublishedCharactersCount, getPublishedCharacterCategorySlugs } from "@/lib/queries/content";
 
 function capCategory(slug: string) {
   if (!slug) return "";
+  if (slug.toLowerCase() === "other") return "All";
   return slug.charAt(0).toUpperCase() + slug.slice(1);
 }
 
-export default async function CharactersIndexPage() {
-  const [characters, categories] = await Promise.all([
-    getPublishedCharacters(120),
+export default async function CharactersIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const page = typeof params.page === 'string' ? parseInt(params.page) || 1 : 1;
+  const sort = typeof params.sort === 'string' && params.sort === 'trending' ? 'trending' : 'recent';
+  const gender = typeof params.gender === 'string' && (params.gender === 'Male' || params.gender === 'Female') ? params.gender : undefined;
+  const isNsfw = typeof params.nsfw === 'string' ? params.nsfw === 'true' : undefined;
+  const q = typeof params.q === 'string' ? params.q : undefined;
+
+  const pageSize = 50; // Total size per 'page' view
+  const initialLoadSize = 20; // Load 20 on first render
+  const skip = (page - 1) * pageSize;
+
+  const [characters, totalCount, categories] = await Promise.all([
+    getPublishedCharacters(initialLoadSize, skip, sort, gender, isNsfw, q),
+    getPublishedCharactersCount(gender, isNsfw, q),
     getPublishedCharacterCategorySlugs(),
   ]);
 
+  const totalPages = Math.ceil(totalCount / pageSize);
+
   return (
-    <div className="flex flex-col w-full max-w-[1200px] mx-auto pb-12">
+    <div className="flex flex-col w-full pb-12">
       <nav className="flex text-sm text-text-muted mb-6">
         <Link href="/" className="hover:text-text-primary transition-colors">
           Home
@@ -23,7 +45,7 @@ export default async function CharactersIndexPage() {
         <span className="text-text-primary">Characters</span>
       </nav>
 
-      <div className="mb-10">
+      <div className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Characters</h1>
         <p className="text-text-secondary text-lg max-w-2xl">
           Discover AI personas for your next adventure. Browse by category or open a profile.
@@ -31,34 +53,27 @@ export default async function CharactersIndexPage() {
       </div>
 
       {categories.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-10">
-          {categories.map((cat) => (
-            <Link
-              key={cat}
-              href={`/character/category/${cat}`}
-              className="px-4 py-2 rounded-xl bg-background-paper border border-white/10 text-sm text-text-secondary hover:border-primary/40 hover:text-primary transition-colors"
-            >
-              {capCategory(cat)}
-            </Link>
-          ))}
-        </div>
+        <Suspense
+          fallback={
+            <div className="h-16 mb-8 rounded-xl bg-white/5 animate-pulse" />
+          }
+        >
+          <CategoryFilter categories={categories} />
+        </Suspense>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-        {characters.map((c) => (
-          <CharacterCard
-            key={c.id}
-            slug={c.slug}
-            name={c.name}
-            avatar={c.avatar}
-            categoryLabel={capCategory(c.categorySlug)}
-            description={c.description}
-          />
-        ))}
-      </div>
+      <InfiniteCharacterList initialCharacters={characters} />
+
+      <Suspense
+        fallback={
+          <div className="h-12 mt-12 rounded-xl bg-white/5 animate-pulse max-w-md mx-auto" />
+        }
+      >
+        <Pagination currentPage={page} totalPages={totalPages} />
+      </Suspense>
 
       {characters.length === 0 && (
-        <p className="text-text-muted text-center py-16">No published characters yet.</p>
+        <p className="text-text-muted text-center py-16">No published characters matching criteria found.</p>
       )}
     </div>
   );

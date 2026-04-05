@@ -101,15 +101,29 @@ export default async function GameDetailPage({ params }: Props) {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link
-                href={`/play/${game.slug}`}
-                className="relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white rounded-full bg-gradient-primary hover:opacity-90 transition-all duration-200 hover:shadow-[0_0_15px_rgba(236,72,153,0.5)] active:scale-95 overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  <Play className="w-5 h-5 fill-white" />
-                  Play Game
-                </span>
-              </Link>
+              {game.url ? (
+                <a
+                  href={game.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white rounded-full bg-gradient-primary hover:opacity-90 transition-all duration-200 hover:shadow-[0_0_15px_rgba(236,72,153,0.5)] active:scale-95 overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Play className="w-5 h-5 fill-white" />
+                    Play Game
+                  </span>
+                </a>
+              ) : (
+                <Link
+                  href={`/play/${game.slug}`}
+                  className="relative inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white rounded-full bg-gradient-primary hover:opacity-90 transition-all duration-200 hover:shadow-[0_0_15px_rgba(236,72,153,0.5)] active:scale-95 overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Play className="w-5 h-5 fill-white" />
+                    Play AI Character
+                  </span>
+                </Link>
+              )}
 
               <button
                 type="button"

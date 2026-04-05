@@ -10,6 +10,7 @@ interface GameCardProps {
   plays: string;
   rating: number;
   image: string;
+  url?: string | null;
 }
 
 export function GameCard({
@@ -20,9 +21,13 @@ export function GameCard({
   plays,
   rating,
   image,
+  url,
 }: GameCardProps) {
+  // Always link to our internal detail page
+  const href = `/game/${slug}`;
+
   return (
-    <Link href={`/game/${slug}`}>
+    <Link href={href}>
       <div className="group relative flex flex-col w-full bg-background-paper rounded-2xl overflow-hidden border border-white/5 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] cursor-pointer">
         {/* Cover Image Area */}
         <div className="relative w-full aspect-video bg-background-elevated overflow-hidden">

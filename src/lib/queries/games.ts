@@ -1,12 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { ContentStatus } from "@prisma/client";
 
-export async function getPublishedGames(take = 24) {
+export async function getPublishedGames(take = 24, searchQuery?: string) {
+  const where: { status: ContentStatus; title?: { contains: string } } = {
+    status: ContentStatus.PUBLISHED,
+  };
+  const trimmed = searchQuery?.trim();
+  if (trimmed) where.title = { contains: trimmed };
+
   return prisma.game.findMany({
-    where: { status: ContentStatus.PUBLISHED },
+    where,
     orderBy: { updatedAt: "desc" },
     take,
-    include: { tags: { include: { tag: true } } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      url: true,
+      shortDescription: true,
+      coverImage: true,
+      categorySlug: true,
+      plays: true,
+      likes: true,
+    }
   });
 }
 
@@ -18,7 +34,17 @@ export async function getGamesByCategory(categorySlug: string, take = 48) {
     },
     orderBy: { plays: "desc" },
     take,
-    include: { tags: { include: { tag: true } } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      url: true,
+      shortDescription: true,
+      coverImage: true,
+      categorySlug: true,
+      plays: true,
+      likes: true,
+    }
   });
 }
 
@@ -45,10 +71,9 @@ export function heuristicRating(likes: number, plays: number): number {
 }
 
 export async function getPublishedGameCategorySlugs() {
-  const rows = await prisma.game.findMany({
+  const rows = await prisma.game.groupBy({
+    by: ['categorySlug'],
     where: { status: ContentStatus.PUBLISHED },
-    select: { categorySlug: true },
-    distinct: ["categorySlug"],
     orderBy: { categorySlug: "asc" },
   });
   return rows.map((r) => r.categorySlug);

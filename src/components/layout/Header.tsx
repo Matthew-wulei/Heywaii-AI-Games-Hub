@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { Search, User, Coins } from "lucide-react";
-import { auth, signIn, signOut } from "@/auth";
+import { Suspense } from "react";
+import { Coins } from "lucide-react";
+import { auth } from "@/auth";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { LoginButton } from "@/components/auth/LoginButton";
+import { UserAvatar } from "@/components/auth/UserAvatar";
 
 export async function Header() {
   const session = await auth();
@@ -10,18 +14,13 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-30 h-20 w-full bg-background-paper/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-6 md:px-8">
       {/* Left section: Global Search */}
-      <div className="flex-1 max-w-xl hidden md:flex">
-        <div className="relative w-full">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search className="w-5 h-5 text-text-muted" />
-          </div>
-          <input
-            type="search"
-            className="block w-full p-3 pl-10 text-sm bg-background-elevated border border-white/10 rounded-xl text-text-primary focus:ring-primary focus:border-primary placeholder-text-muted transition-all duration-300"
-            placeholder="Search games, characters, creators..."
-          />
-        </div>
-      </div>
+      <Suspense
+        fallback={
+          <div className="flex-1 max-w-xl hidden md:block h-11 rounded-xl bg-background-elevated/60 border border-white/5 animate-pulse" />
+        }
+      >
+        <GlobalSearch />
+      </Suspense>
 
       {/* Right section: Actions */}
       <div className="flex items-center gap-4 md:gap-6 ml-auto">
@@ -45,37 +44,16 @@ export async function Header() {
 
             <NotificationBell />
 
-            {/* User Profile Dropdown Placeholder */}
-            <form action={async () => {
-              "use server"
-              await signOut()
-            }}>
-              <button 
-                type="submit"
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-background-elevated border border-white/10 overflow-hidden hover:ring-2 ring-primary/50 transition-all"
-                title="Sign out"
-              >
-                {session.user?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={session.user?.image} alt="User avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-5 h-5 text-text-secondary" />
-                )}
-              </button>
-            </form>
+            <Link
+              href="/profile"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-background-elevated border border-white/10 overflow-hidden hover:ring-2 ring-primary/50 transition-all"
+              title="Profile"
+            >
+              <UserAvatar image={session.user?.image} />
+            </Link>
           </>
         ) : (
-          <form action={async () => {
-            "use server"
-            await signIn("google")
-          }}>
-            <button 
-              type="submit"
-              className="px-5 py-2.5 text-sm font-medium text-white rounded-xl bg-white/10 hover:bg-white/20 transition-all border border-white/10"
-            >
-              Log in
-            </button>
-          </form>
+          <LoginButton />
         )}
       </div>
     </header>

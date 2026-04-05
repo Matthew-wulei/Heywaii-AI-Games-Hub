@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChat } from "ai/react";
+import type { Prisma } from "@prisma/client";
 
 const MODELS = [
   { id: "gpt-4o", name: "GPT-4o (Official)", type: "official" as const, cost: 10, recommended: true },
@@ -23,6 +24,10 @@ const MODELS = [
 
 type TabId = "profile" | "memory" | "settings";
 
+type PlayPageCharacter = Prisma.CharacterGetPayload<{
+  include: { author: { select: { name: true } } };
+}>;
+
 export function PlayChatClient({
   slug,
   gameTitle,
@@ -31,6 +36,7 @@ export function PlayChatClient({
   playsLabel,
   rating,
   creatorName,
+  character,
 }: {
   slug: string;
   gameTitle: string;
@@ -39,6 +45,7 @@ export function PlayChatClient({
   playsLabel: string;
   rating: number;
   creatorName: string;
+  character: PlayPageCharacter | null;
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
@@ -48,16 +55,23 @@ export function PlayChatClient({
 
   const chatBody = useMemo(() => ({ modelId: selectedModel.id }), [selectedModel.id]);
 
+  const initialMessages = useMemo(
+    () => [
+      {
+        id: "sys-0",
+        role: "assistant" as const,
+        content: character?.greeting?.trim()
+          ? character.greeting
+          : `Welcome to ${gameTitle}. You find yourself at the start of an AI-driven story. What do you do?`,
+      },
+    ],
+    [character?.greeting, gameTitle]
+  );
+
   const chat = useChat({
     api: "/api/chat",
     body: chatBody,
-    initialMessages: [
-      {
-        id: "sys-0",
-        role: "assistant",
-        content: `Welcome to ${gameTitle}. You find yourself at the start of an AI-driven story. What do you do?`,
-      },
-    ],
+    initialMessages,
   });
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop, append } = chat;

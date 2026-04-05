@@ -17,6 +17,7 @@ export type HomeGameCard = {
   plays: string;
   rating: number;
   image: string;
+  url?: string | null;
 };
 
 export function HomeClient({

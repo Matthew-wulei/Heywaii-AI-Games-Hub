@@ -11,12 +11,16 @@ import type { CheerioAPI } from "cheerio";
 const CATEGORY_RULES: [RegExp, string][] = [
   [/\b(rpg|quest|dungeon|dragon|mage|sword|fantasy|hero|adventure)\b/i, "rpg"],
   [/\b(sim|colony|city|tycoon|build|manage|farm|life)\b/i, "simulation"],
-  [/\b(puzzle|logic|brain|match|word|trivia|quiz)\b/i, "puzzle"],
-  [/\b(romance|visual.?novel|vn|dating|otome|love)\b/i, "visual-novel"],
+  [/\b(puzzle|logic|brain|match|word|trivia|quiz|riddle|escape)\b/i, "puzzle"],
+  [/\b(romance|visual.?novel|vn|dating|otome|love|narrative|story|fiction)\b/i, "story"],
   [/\b(action|shooter|fight|combat|battle|war|fps)\b/i, "action"],
   [/\b(horror|survival|escape|mystery|thriller)\b/i, "horror"],
-  [/\b(strategy|tower.?defense|rts|chess|card)\b/i, "strategy"],
-  [/\b(chat|companion|ai.?friend|roleplay|character)\b/i, "chat"],
+  [/\b(strategy|tower.?defense|rts|chess|card|tactical)\b/i, "strategy"],
+  [/\b(chat|companion|ai.?friend|roleplay|character|npc|conversational)\b/i, "chat"],
+  [/\b(sandbox|crafting|create|builder|open.?world|creation)\b/i, "sandbox"],
+  [/\b(discovery|directory|hub|collection|curated|list|showcase)\b/i, "discovery"],
+  [/\b(education|language|learn|study|tutor)\b/i, "education"],
+  [/\b(social|multiplayer|coop|party|board)\b/i, "social"],
 ];
 
 export function inferCategorySlug(text: string): string {
@@ -24,7 +28,7 @@ export function inferCategorySlug(text: string): string {
   for (const [re, slug] of CATEGORY_RULES) {
     if (re.test(lower)) return slug;
   }
-  return "imported";
+  return "other";
 }
 
 // ---------------------------------------------------------------------------

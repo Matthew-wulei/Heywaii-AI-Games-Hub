@@ -11,12 +11,17 @@ export type CrawlerImportResult =
 /** Lightweight category guess from title (no external AI). */
 export function inferCategorySlugFromTitle(title: string): string {
   const t = title.toLowerCase();
-  if (/\b(rpg|quest|dungeon|dragon|mage|sword)\b/.test(t)) return "rpg";
-  if (/\b(sim|colony|city|tycoon|build|manage)\b/.test(t)) return "simulation";
-  if (/\b(puzzle|logic|brain|match)\b/.test(t)) return "puzzle";
-  if (/\b(romance|visual novel|vn|dating)\b/.test(t)) return "visual-novel";
-  if (/\b(action|shooter|fight|combat)\b/.test(t)) return "action";
-  return "imported";
+  if (/\b(rpg|quest|dungeon|dragon|mage|sword|adventure|fantasy)\b/.test(t)) return "rpg";
+  if (/\b(sim|colony|city|tycoon|build|manage|farm)\b/.test(t)) return "simulation";
+  if (/\b(puzzle|logic|brain|match|quiz|riddle)\b/.test(t)) return "puzzle";
+  if (/\b(romance|visual novel|vn|dating|story|narrative)\b/.test(t)) return "story";
+  if (/\b(action|shooter|fight|combat|battle)\b/.test(t)) return "action";
+  if (/\b(strategy|tower defense|rts|tactical)\b/.test(t)) return "strategy";
+  if (/\b(chat|companion|roleplay|character|npc)\b/.test(t)) return "chat";
+  if (/\b(sandbox|craft|create|builder|world)\b/.test(t)) return "sandbox";
+  if (/\b(discovery|directory|hub|list|collection)\b/.test(t)) return "discovery";
+  if (/\b(education|learn|language)\b/.test(t)) return "education";
+  return "other";
 }
 
 export async function importGameFromCrawlerSource(source: CrawlerSource): Promise<CrawlerImportResult> {

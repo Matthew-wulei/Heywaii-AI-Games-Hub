@@ -59,6 +59,7 @@ export default async function GameCategoryPage({ params }: Props) {
             plays={formatPlays(g.plays)}
             rating={heuristicRating(g.likes, g.plays)}
             image={g.coverImage}
+            url={g.url}
           />
         ))}
       </div>

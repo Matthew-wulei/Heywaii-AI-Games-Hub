@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 // ==========================================
@@ -57,9 +58,13 @@ model User {
   sessions      Session[]
   games         Game[] // Games authored by user
   characters    Character[] // Characters authored by user
-  apiKeys       UserApiKey[]
-  playHistories PlayHistory[]
-  favorites     Favorite[]
+  apiKeys              UserApiKey[]
+  playHistories        PlayHistory[]
+  favorites            Favorite[]
+  characterLikes       CharacterLike[]
+  characterBookmarks   CharacterBookmark[]
+  characterComments    CharacterComment[]
+  characterChats       CharacterChat[]
 }
 
 model VerificationToken {
@@ -97,6 +102,8 @@ enum ApiProvider {
   ANTHROPIC
   GEMINI
   DEEPSEEK
+  KIMI
+  GLM
 }
 
 model OfficialApiConfig {
@@ -122,31 +129,31 @@ model Game {
   shortDescription String
   fullDescription  String        @db.Text
   coverImage       String
-  screenshots      Json?         // String[] stored as JSON array
+  screenshots      Json? // String[] stored as JSON array
   categorySlug     String
   status           ContentStatus @default(PENDING)
   source           ContentSource @default(UGC)
   sourceUrl        String?
-  externalId       String?       // Original ID from crawler source, for incremental updates
+  externalId       String? // Original ID from crawler source, for incremental updates
 
   // Game metadata
-  developer        String?       // Developer / team name
-  developerUrl     String?       // Developer official website
-  releaseDate      DateTime?     // Game release date
-  platform         Json?         // String[] e.g. ["Web", "iOS", "Android"]
-  language         Json?         // String[] e.g. ["en", "zh", "ja"]
-  isFree           Boolean       @default(true)
-  pricingNote      String?       // e.g. "Free + In-App Purchase"
+  developer    String? // Developer / team name
+  developerUrl String? // Developer official website
+  releaseDate  DateTime? // Game release date
+  platform     Json? // String[] e.g. ["Web", "iOS", "Android"]
+  language     Json? // String[] e.g. ["en", "zh", "ja"]
+  isFree       Boolean   @default(true)
+  pricingNote  String? // e.g. "Free + In-App Purchase"
 
   // Stats
   plays       Int   @default(0)
   likes       Int   @default(0)
-  rating      Float @default(0)  // Average rating 0-5
-  ratingCount Int   @default(0)  // Number of ratings
+  rating      Float @default(0) // Average rating 0-5
+  ratingCount Int   @default(0) // Number of ratings
 
   // Editorial
   featured      Boolean @default(false)
-  featuredOrder Int?    // Lower = higher priority on homepage
+  featuredOrder Int? // Lower = higher priority on homepage
 
   authorId String? // Nullable if from crawler
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
@@ -157,6 +164,10 @@ model Game {
   tags          GameTag[]
   playHistories PlayHistory[]
   favorites     Favorite[]
+
+  @@index([status, categorySlug])
+  @@index([plays])
+  @@index([updatedAt])
 }
 
 model Character {
@@ -168,12 +179,110 @@ model Character {
   categorySlug String
   status       ContentStatus @default(PENDING)
   source       ContentSource @default(UGC)
+  sourceUrl    String? // Original ID from crawler source, for incremental updates
+
+  // Character metadata
+  systemPrompt String? @db.Text // Instructions for the AI persona (fallback when personality/scenario/appearance empty)
+  greeting     String? @db.Text // First message from the character
+  introduction String? @db.Text // Raw HTML profile card (detail page)
+  personality  String? @db.Text // [SETTING:] / W++ style — injected into chat system prompt
+  scenario     String? @db.Text // [SCENARIO:] — injected into chat system prompt
+  appearance   String? @db.Text // [Character N - Name:] — injected into chat system prompt
+  visibility   String  @default("public") // "public", "private", "unlisted"
+  gender       String? // e.g. "Male", "Female", "Non-binary"
+  creatorName  String? // Original creator name from crawler
+  chatCount    Int     @default(0) // Number of conversations
+  likeCount    Int     @default(0) // Number of likes
+  bookmarkCount Int    @default(0) // Number of bookmarks
+  isNsfw       Boolean @default(false)
 
   authorId String?
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status, categorySlug, isNsfw])
+  @@index([status, gender, isNsfw])
+  @@index([chatCount])
+  @@index([createdAt])
+
+  likes     CharacterLike[]
+  bookmarks CharacterBookmark[]
+  comments  CharacterComment[]
+  chats     CharacterChat[]
+}
+
+model CharacterChat {
+  id          String   @id @default(cuid())
+  userId      String
+  characterId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  messages  CharacterChatMessage[]
+
+  @@unique([userId, characterId])
+  @@index([userId])
+  @@index([characterId])
+}
+
+model CharacterChatMessage {
+  id        String              @id @default(cuid())
+  chatId    String
+  role      CharacterChatRole
+  content   String              @db.Text
+  createdAt DateTime            @default(now())
+
+  chat CharacterChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+}
+
+enum CharacterChatRole {
+  USER
+  ASSISTANT
+}
+
+model CharacterLike {
+  id          String   @id @default(cuid())
+  userId      String
+  characterId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, characterId])
+  @@index([characterId])
+}
+
+model CharacterBookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  characterId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, characterId])
+  @@index([characterId])
+}
+
+model CharacterComment {
+  id          String   @id @default(cuid())
+  userId      String
+  characterId String
+  body        String   @db.Text
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId, createdAt])
 }
 
 model Tag {

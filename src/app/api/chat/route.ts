@@ -1,13 +1,17 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { streamText, type CoreMessage } from "ai";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/crypto";
+import { getCharacterForChatBySlug } from "@/lib/queries/content";
 
 export const maxDuration = 30;
 
 const SYSTEM_PROMPT =
   "You are an AI character in an immersive narrative game. Stay in character, keep responses concise, and drive the story forward. Offer clear choices when appropriate.";
+
+const IMPORTANT_BLOCK =
+  "[IMPORTANT: Stay in character at all times. Use the DIALOGUE MARKER defined for each character when speaking. Describe actions in *italics*. Keep responses immersive and consistent with the established scenario.]";
 
 /** Client-facing model ids → actual OpenAI-compatible model id used on the server. */
 const OFFICIAL_MODELS: Record<string, { openaiModel: string }> = {
@@ -24,20 +28,87 @@ const COST_BY_BACKEND_MODEL: Record<string, number> = {
   "gpt-3.5-turbo": 8,
 };
 
-async function resolveOpenAIApiKey(): Promise<string> {
+type ChatCharacterRow = NonNullable<Awaited<ReturnType<typeof getCharacterForChatBySlug>>>;
+
+function buildSystemPromptFromCharacter(
+  character: ChatCharacterRow,
+  memories: string[] = []
+): string {
+  const p = character.personality?.trim();
+  const s = character.scenario?.trim();
+  const a = character.appearance?.trim();
+  const hasAny = Boolean(p || s || a);
+
+  if (!hasAny) {
+    return character.systemPrompt?.trim() || SYSTEM_PROMPT;
+  }
+
+  const parts: string[] = [];
+  if (p) parts.push(p);
+  if (s) parts.push(s);
+  if (a) parts.push(a);
+  if (memories.length > 0) {
+    parts.push(`[MEMORY:\n${memories.map((m) => `- ${m}`).join("\n")}\n]`);
+  }
+  parts.push(IMPORTANT_BLOCK);
+  return parts.join("\n\n");
+}
+
+function firstAssistantMatchesGreeting(
+  messages: Array<{ role?: string; content?: unknown }>,
+  greeting: string | null
+): boolean {
+  if (!greeting?.trim()) return true;
+  const m0 = messages[0];
+  if (!m0 || m0.role !== "assistant") return false;
+  const c = typeof m0.content === "string" ? m0.content : "";
+  return c.trim() === greeting.trim();
+}
+
+function toCoreMessages(
+  raw: unknown,
+  greeting: string | null
+): CoreMessage[] {
+  if (!Array.isArray(raw)) return [];
+
+  const rows = raw.filter(
+    (m): m is { role: string; content: string } =>
+      Boolean(m) &&
+      typeof m === "object" &&
+      (m as { role?: string }).role !== undefined &&
+      typeof (m as { content?: unknown }).content === "string"
+  );
+
+  const base: CoreMessage[] = rows.map((m) => ({
+    role: m.role as "user" | "assistant" | "system",
+    content: m.content,
+  }));
+
+  const filtered = base.filter((m) => m.role === "user" || m.role === "assistant");
+
+  if (!greeting?.trim()) return filtered;
+
+  if (firstAssistantMatchesGreeting(filtered, greeting)) return filtered;
+
+  return [{ role: "assistant", content: greeting.trim() }, ...filtered];
+}
+
+async function resolveOpenAIConfig(): Promise<{ apiKey: string; baseUrl?: string }> {
   const row = await prisma.officialApiConfig.findUnique({
     where: { provider: "OPENAI" },
   });
   if (row?.key?.trim()) {
+    let apiKey: string;
     try {
-      return decryptSecret(row.key);
+      apiKey = decryptSecret(row.key);
     } catch {
-      return row.key;
+      apiKey = row.key;
     }
+    return { apiKey, baseUrl: row.baseUrl ?? undefined };
   }
   const env = process.env.OPENAI_API_KEY;
   if (!env) throw new Error("NO_OPENAI_KEY");
-  return env;
+  return { apiKey: env };
 }
 
 export async function POST(req: Request) {
@@ -51,9 +122,23 @@ export async function POST(req: Request) {
     const body = await req.json();
     const messages = body.messages;
     const modelId: string = body.modelId ?? "gpt-4o";
+    const characterSlug =
+      typeof body.characterSlug === "string" ? body.characterSlug.trim() : "";
 
     if (!Array.isArray(messages)) {
       return new Response("Bad request", { status: 400 });
+    }
+
+    let systemText = SYSTEM_PROMPT;
+    let coreMessages: CoreMessage[] = toCoreMessages(messages, null);
+
+    if (characterSlug) {
+      const character = await getCharacterForChatBySlug(characterSlug);
+      if (!character) {
+        return new Response("Character not found", { status: 400 });
+      }
+      systemText = buildSystemPromptFromCharacter(character, []);
+      coreMessages = toCoreMessages(messages, character.greeting ?? null);
     }
 
     if (modelId === "deepseek-custom") {
@@ -77,8 +162,8 @@ export async function POST(req: Request) {
       });
       const result = await streamText({
         model: deepseek("deepseek-chat"),
-        messages,
-        system: SYSTEM_PROMPT,
+        messages: coreMessages,
+        system: systemText,
       });
       return result.toTextStreamResponse();
     }
@@ -107,12 +192,18 @@ export async function POST(req: Request) {
       data: { balance: { decrement: cost } },
     });
 
-    const openaiKey = await resolveOpenAIApiKey();
-    const openai = createOpenAI({ apiKey: openaiKey });
+    const { apiKey: openaiKey, baseUrl } = await resolveOpenAIConfig();
+    const openai = createOpenAI({
+      apiKey: openaiKey,
+      ...(baseUrl ? { baseURL: baseUrl } : {}),
+    });
+
     const result = await streamText({
-      model: openai(spec.openaiModel),
-      messages,
-      system: SYSTEM_PROMPT,
+      model: openai(backendModel),
+      messages: coreMessages,
+      system: systemText,
+      temperature: body.temperature ?? 0.7,
+      maxTokens: body.maxTokens ?? 400,
     });
     return result.toTextStreamResponse();
   } catch (e) {

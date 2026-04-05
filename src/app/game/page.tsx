@@ -7,8 +7,18 @@ function capCategory(slug: string) {
   return slug.charAt(0).toUpperCase() + slug.slice(1);
 }
 
-export default async function GamesIndexPage() {
-  const [games, categories] = await Promise.all([getPublishedGames(120), getPublishedGameCategorySlugs()]);
+export default async function GamesIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const q = typeof params.q === "string" ? params.q : undefined;
+
+  const [games, categories] = await Promise.all([
+    getPublishedGames(120, q),
+    getPublishedGameCategorySlugs(),
+  ]);
 
   return (
     <div className="flex flex-col w-full max-w-[1200px] mx-auto pb-12">
@@ -23,7 +33,17 @@ export default async function GamesIndexPage() {
       <div className="mb-10">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">Games</h1>
         <p className="text-text-secondary text-lg max-w-2xl">
-          Browse AI-powered games on HeyWaii. Filter by category or open a title to play.
+          {q?.trim() ? (
+            <>
+              Results for <span className="text-text-primary font-medium">&ldquo;{q.trim()}&rdquo;</span>
+              {" · "}
+              <Link href="/game" className="text-primary hover:underline">
+                Clear search
+              </Link>
+            </>
+          ) : (
+            <>Browse AI-powered games on HeyWaii. Filter by category or open a title to play.</>
+          )}
         </p>
       </div>
 
@@ -52,6 +72,7 @@ export default async function GamesIndexPage() {
             plays={formatPlays(g.plays)}
             rating={heuristicRating(g.likes, g.plays)}
             image={g.coverImage}
+            url={g.url}
           />
         ))}
       </div>

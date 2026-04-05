@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true, categorySlug: true },
     }),
     prisma.character.findMany({
-      where: { status: ContentStatus.PUBLISHED },
+      where: { status: ContentStatus.PUBLISHED, isNsfw: false },
       select: { slug: true, updatedAt: true, categorySlug: true },
     }),
     prisma.article.findMany({
@@ -44,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       distinct: ["categorySlug"],
     }),
     prisma.character.findMany({
-      where: { status: ContentStatus.PUBLISHED },
+      where: { status: ContentStatus.PUBLISHED, isNsfw: false },
       select: { categorySlug: true },
       distinct: ["categorySlug"],
     }),

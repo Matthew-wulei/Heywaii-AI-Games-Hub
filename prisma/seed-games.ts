@@ -17,10 +17,13 @@ function inferCategory(tags: string, title: string): string {
   if (combined.includes('rpg') || combined.includes('adventure') || combined.includes('dungeon') || combined.includes('quest')) return 'rpg'
   if (combined.includes('chat') || combined.includes('companion') || combined.includes('roleplay') || combined.includes('character')) return 'chat'
   if (combined.includes('puzzle') || combined.includes('riddle') || combined.includes('escape') || combined.includes('logic')) return 'puzzle'
-  if (combined.includes('simulation') || combined.includes('simulator') || combined.includes('world')) return 'simulation'
-  if (combined.includes('language') || combined.includes('learn') || combined.includes('spanish') || combined.includes('french') || combined.includes('korean')) return 'education'
+  if (combined.includes('simulation') || combined.includes('simulator') || combined.includes('world') || combined.includes('manage')) return 'simulation'
+  if (combined.includes('language') || combined.includes('learn') || combined.includes('education')) return 'education'
   if (combined.includes('story') || combined.includes('visual novel') || combined.includes('narrative') || combined.includes('fiction')) return 'story'
   if (combined.includes('strategy') || combined.includes('tactical') || combined.includes('combat')) return 'strategy'
+  if (combined.includes('sandbox') || combined.includes('crafting') || combined.includes('create') || combined.includes('open world')) return 'sandbox'
+  if (combined.includes('discovery') || combined.includes('directory') || combined.includes('hub') || combined.includes('collection') || combined.includes('curated') || combined.includes('list')) return 'discovery'
+  if (combined.includes('social') || combined.includes('multiplayer') || combined.includes('party')) return 'social'
   return 'other'
 }
 
@@ -706,11 +709,6 @@ async function main() {
         categorySlug,
         status: ContentStatus.PUBLISHED,
         source: ContentSource.CRAWLER,
-        platform: JSON.stringify(game.platform),
-        isFree: game.isFree,
-        pricingNote: game.pricingNote || null,
-        featured: game.featured,
-        featuredOrder: game.featuredOrder ?? null,
         tags: {
           create: game.tags.map((tagName) => ({
             tag: {
