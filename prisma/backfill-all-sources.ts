@@ -2,11 +2,12 @@
  * Backfill greeting, introduction, personality, scenario, appearance
  * from raw JSON files (crushon / genraton / mufy / rubii) into the database.
  *
- * Source directories (hardcoded):
- *   D:\scraper_framework_v3\scraper_framework_latest\data\crushon
- *   D:\scraper_framework_v3\scraper_framework_latest\data\genraton
- *   D:\scraper_framework_v3\scraper_framework_latest\data\mufy
- *   D:\scraper_framework_v3\scraper_framework_latest\data\rubii
+ * Source directories (per source, first match wins):
+ *   $SCRAPER_FRAMEWORK_ROOT/data_processed/<source>   (same layout as import-other-sources-v3)
+ *   $SCRAPER_FRAMEWORK_ROOT/data/<source>
+ *
+ * Default SCRAPER_FRAMEWORK_ROOT:
+ *   D:\scraper_framework_v3\scraper_framework_latest
  *
  * Match strategy (in order):
  *   1. data._original_id  → DB sourceUrl  (most reliable)
@@ -15,34 +16,102 @@
  *
  * A field is only overwritten when the new value is LONGER than the existing one.
  *
- * Usage:
- *   # Preview (no writes):
- *   pnpm exec ts-node --compiler-options "{\"module\":\"CommonJS\"}" prisma/backfill-all-sources.ts --dry-run
- *
- *   # Write all sources:
- *   pnpm exec ts-node --compiler-options "{\"module\":\"CommonJS\"}" prisma/backfill-all-sources.ts
- *
- *   # Write one source only:
- *   pnpm exec ts-node --compiler-options "{\"module\":\"CommonJS\"}" prisma/backfill-all-sources.ts --only=crushon
+ * Usage (recommended — loads .env from repo root):
+ *   pnpm run backfill:sources -- --dry-run
+ *   pnpm run backfill:sources
+ *   pnpm run backfill:sources -- --only=crushon
  */
 
 import fs from "fs";
+import net from "net";
 import path from "path";
+import { config as loadEnv } from "dotenv";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+/** Resolved via ts-node CommonJS (see prisma/run-backfill.cjs). */
+const repoRoot = path.resolve(__dirname, "..");
+loadEnv({ path: path.join(repoRoot, ".env") });
+loadEnv({ path: path.join(repoRoot, ".env.local") });
+
 const dryRun = process.argv.includes("--dry-run");
 const onlyArg = process.argv.find((a) => a.startsWith("--only="));
 const onlySource = onlyArg?.slice("--only=".length).trim().toLowerCase();
 
-// ── Hardcoded source directories ──────────────────────────────────────────────
-const SOURCE_DIRS: Record<string, string> = {
-  crushon:  "D:\\scraper_framework_v3\\scraper_framework_latest\\data\\crushon",
-  genraton: "D:\\scraper_framework_v3\\scraper_framework_latest\\data\\genraton",
-  mufy:     "D:\\scraper_framework_v3\\scraper_framework_latest\\data\\mufy",
-  rubii:    "D:\\scraper_framework_v3\\scraper_framework_latest\\data\\rubii",
-};
-// ─────────────────────────────────────────────────────────────────────────────
+const SCRAPER_ROOT =
+  process.env.SCRAPER_FRAMEWORK_ROOT?.trim() ||
+  path.join("D:", "scraper_framework_v3", "scraper_framework_latest");
+
+const SOURCE_KEYS = ["crushon", "genraton", "mufy", "rubii"] as const;
+
+function resolveSourceDir(source: string): string | null {
+  const processed = path.join(SCRAPER_ROOT, "data_processed", source);
+  const legacy = path.join(SCRAPER_ROOT, "data", source);
+  if (fs.existsSync(processed)) return processed;
+  if (fs.existsSync(legacy)) return legacy;
+  return null;
+}
+
+/**
+ * Prisma / mysql2 URL tweaks: shorten wait when the host is down or filtered.
+ * (Some stacks still hang on DNS; we also TCP-probe below.)
+ */
+function withMysqlConnectTimeout(url: string, seconds: number): string {
+  const u = url.trim();
+  if (!u) return u;
+  let out = u;
+  const add = (k: string, v: string) => {
+    if (new RegExp(`[?&]${k}=`, "i").test(out)) return;
+    out = out.includes("?") ? `${out}&${k}=${v}` : `${out}?${k}=${v}`;
+  };
+  add("connect_timeout", String(seconds));
+  add("connection_limit", "2");
+  return out;
+}
+
+/** Fail fast when host:port is unreachable (before Prisma hangs on some networks). */
+function probeMysqlTcp(url: string, timeoutMs: number): Promise<void> {
+  const raw = url.trim();
+  const forUrl = raw.replace(/^mysql:\/\//i, "http://");
+  let host = "";
+  let port = 3306;
+  try {
+    const u = new URL(forUrl);
+    host = u.hostname;
+    if (u.port) port = parseInt(u.port, 10) || 3306;
+  } catch {
+    return Promise.resolve();
+  }
+  if (!host) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({ host, port }, () => {
+      socket.destroy();
+      resolve();
+    });
+    socket.setTimeout(timeoutMs);
+    socket.on("timeout", () => {
+      socket.destroy();
+      reject(new Error(`TCP ${timeoutMs}ms timeout — ${host}:${port} (VPN / security group / wrong host?)`));
+    });
+    socket.on("error", (err) => {
+      socket.destroy();
+      reject(err);
+    });
+  });
+}
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  console.error("DATABASE_URL is missing. Add it to .env in the repo root (or export it), then retry.");
+  process.exit(1);
+}
+const databaseUrlResolved = databaseUrl;
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: { url: withMysqlConnectTimeout(databaseUrlResolved, 25) },
+  },
+});
 
 const MAX_TEXT = 65_000;
 
@@ -143,40 +212,107 @@ async function main() {
   console.log(`\n🚀 backfill-all-sources  mode=${dryRun ? "DRY RUN" : "WRITE"}  source=${onlySource ?? "ALL"}\n`);
 
   const sources = onlySource
-    ? [onlySource].filter((s) => SOURCE_DIRS[s])
-    : Object.keys(SOURCE_DIRS);
+    ? SOURCE_KEYS.filter((s) => s === onlySource)
+    : [...SOURCE_KEYS];
 
   if (onlySource && sources.length === 0) {
-    console.error(`Unknown source: "${onlySource}". Valid: ${Object.keys(SOURCE_DIRS).join(", ")}`);
+    console.error(`Unknown source: "${onlySource}". Valid: ${SOURCE_KEYS.join(", ")}`);
     process.exit(1);
   }
 
   // ── Pre-load all DB characters into memory for fast lookup ──────────────────
-  console.log("Loading DB index…");
-  const dbChars = await prisma.character.findMany({
-    select: {
-      id: true,
-      name: true,
-      sourceUrl: true,
-      greeting: true,
-      introduction: true,
-      personality: true,
-      scenario: true,
-      appearance: true,
-    },
-  });
+  console.log("Probing database host (TCP)…");
+  try {
+    await probeMysqlTcp(databaseUrlResolved, 12_000);
+    console.log("Database host accepts TCP; loading index…");
+  } catch (e) {
+    console.error(
+      "Cannot reach MySQL host. Fix VPN / RDS whitelist / DATABASE_URL, then run again.\n",
+      e
+    );
+    process.exit(1);
+  }
 
-  // sourceUrl → record
+  const pageSize = Math.min(
+    8000,
+    Math.max(500, parseInt(process.env.BACKFILL_PAGE_SIZE || "5000", 10) || 5000)
+  );
+
+  type LightChar = { id: string; name: string; sourceUrl: string | null };
+  const dbChars: LightChar[] = [];
+
+  try {
+    let cursor: { id: string } | undefined;
+    for (;;) {
+      const batch = await prisma.character.findMany({
+        take: pageSize,
+        ...(cursor ? { cursor, skip: 1 } : {}),
+        orderBy: { id: "asc" },
+        select: { id: true, name: true, sourceUrl: true },
+      });
+      if (batch.length === 0) break;
+      dbChars.push(...batch);
+      cursor = { id: batch[batch.length - 1].id };
+      process.stdout.write(`\rLoading DB index (light)… ${dbChars.length} rows   `);
+    }
+    process.stdout.write("\n");
+  } catch (e: unknown) {
+    const code = e && typeof e === "object" && "code" in e ? String((e as { code?: string }).code) : "";
+    console.error("Failed to load characters from the database.");
+    if (code === "P1001" || /connect|ECONNREFUSED|ETIMEDOUT/i.test(String(e))) {
+      console.error(
+        "Check VPN / RDS IP whitelist / DATABASE_URL. connect_timeout=25s is applied on the client URL."
+      );
+    }
+    console.error(e);
+    process.exit(1);
+  }
+
+  // sourceUrl → light row
   const bySourceUrl = new Map(
     dbChars.filter((c) => c.sourceUrl).map((c) => [c.sourceUrl!, c])
   );
-  // name → list of records (to detect duplicates)
-  const byName = new Map<string, (typeof dbChars)[0][]>();
+  const byName = new Map<string, LightChar[]>();
   for (const c of dbChars) {
     if (!byName.has(c.name)) byName.set(c.name, []);
     byName.get(c.name)!.push(c);
   }
-  console.log(`Loaded ${dbChars.length} DB records\n`);
+  console.log(`Indexed ${dbChars.length} DB rows (long fields load on demand)\n`);
+
+  const fullSelect = {
+    id: true,
+    name: true,
+    sourceUrl: true,
+    greeting: true,
+    introduction: true,
+    personality: true,
+    scenario: true,
+    appearance: true,
+  } as const;
+
+  type FullChar = {
+    id: string;
+    name: string;
+    sourceUrl: string | null;
+    greeting: string | null;
+    introduction: string | null;
+    personality: string | null;
+    scenario: string | null;
+    appearance: string | null;
+  };
+  const fullCache = new Map<string, FullChar>();
+
+  async function getFullRow(id: string): Promise<FullChar | null> {
+    const hit = fullCache.get(id);
+    if (hit) return hit;
+    const row = await prisma.character.findUnique({
+      where: { id },
+      select: fullSelect,
+    });
+    if (!row) return null;
+    fullCache.set(id, row);
+    return row;
+  }
   // ────────────────────────────────────────────────────────────────────────────
 
   let totalUpdated = 0;
@@ -187,11 +323,15 @@ async function main() {
 
   const BATCH = 100;
 
-  for (const source of sources) {
-    const dirPath = SOURCE_DIRS[source];
+  console.log(`SCRAPER_FRAMEWORK_ROOT → ${SCRAPER_ROOT}\n`);
 
-    if (!fs.existsSync(dirPath)) {
-      console.warn(`⚠️  Directory not found, skipping: ${dirPath}`);
+  for (const source of sources) {
+    const dirPath = resolveSourceDir(source);
+
+    if (!dirPath) {
+      console.warn(
+        `⚠️  No data folder for "${source}" (tried data_processed and data under SCRAPER_FRAMEWORK_ROOT), skipping.`
+      );
       continue;
     }
 
@@ -256,6 +396,12 @@ async function main() {
         totalNotFound++;
         continue;
       }
+
+      const existingFull = await getFullRow(existing.id);
+      if (!existingFull) {
+        totalNotFound++;
+        continue;
+      }
       // ──────────────────────────────────────────────────────────────────────
 
       const newGreeting     = extractGreeting(data);
@@ -265,11 +411,11 @@ async function main() {
       const newAppearance   = extractAppearance(data, rawItem);
 
       const updateData: Record<string, string> = {};
-      if (longer(existing.greeting,     newGreeting))     updateData.greeting     = clip(newGreeting!);
-      if (longer(existing.introduction, newIntroduction)) updateData.introduction = clip(newIntroduction!);
-      if (longer(existing.personality,  newPersonality))  updateData.personality  = clip(newPersonality!);
-      if (longer(existing.scenario,     newScenario))     updateData.scenario     = clip(newScenario!);
-      if (longer(existing.appearance,   newAppearance))   updateData.appearance   = clip(newAppearance!);
+      if (longer(existingFull.greeting,     newGreeting))     updateData.greeting     = clip(newGreeting!);
+      if (longer(existingFull.introduction, newIntroduction)) updateData.introduction = clip(newIntroduction!);
+      if (longer(existingFull.personality,  newPersonality))  updateData.personality  = clip(newPersonality!);
+      if (longer(existingFull.scenario,     newScenario))     updateData.scenario     = clip(newScenario!);
+      if (longer(existingFull.appearance,   newAppearance))   updateData.appearance   = clip(newAppearance!);
 
       if (Object.keys(updateData).length === 0) {
         totalSkipped++;
@@ -306,4 +452,6 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
