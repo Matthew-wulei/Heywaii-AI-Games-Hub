@@ -132,9 +132,21 @@ function asRecord(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function extractGreeting(data: Record<string, unknown>): string | null {
+function extractGreeting(
+  data: Record<string, unknown>,
+  rawItem: Record<string, unknown>
+): string | null {
   const lang = asRecord(data.zh_tw) || asRecord(data.en) || {};
-  return coalesceStr(lang.greeting, data.greeting);
+  const rawNested = asRecord(rawItem._raw) || asRecord(data._raw);
+  return coalesceStr(
+    lang.greeting,
+    data.greeting,
+    rawItem.greeting,
+    rawNested?.greeting,
+    data.first_message,
+    rawItem.first_message,
+    rawNested?.first_message
+  );
 }
 
 function extractIntroduction(
@@ -404,7 +416,7 @@ async function main() {
       }
       // ──────────────────────────────────────────────────────────────────────
 
-      const newGreeting     = extractGreeting(data);
+      const newGreeting     = extractGreeting(data, rawItem);
       const newIntroduction = extractIntroduction(data, rawItem);
       const newPersonality  = extractPersonality(data, rawItem);
       const newScenario     = extractScenario(data, rawItem);
