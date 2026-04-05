@@ -2,6 +2,12 @@ import React, { useCallback, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
+import { IframeHtml } from '@/components/character/IframeHtml';
+
+/** 检测内容是否为 HTML（包含真实 HTML 标签，而非 Markdown 的 ** 等符号） */
+function isHtmlContent(text: string): boolean {
+  return /<[a-zA-Z][^>]*>[\s\S]*<\/[a-zA-Z]>/.test(text) || /<[a-zA-Z][^>]*\/>/.test(text);
+}
 
 function reactNodeToPlainText(node: React.ReactNode): string {
   if (node == null || typeof node === 'boolean') return '';
@@ -332,15 +338,23 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               </div>
             )}
 
-            {/* Main Content Rendered with Markdown */}
+            {/* Main Content Rendered with Markdown or HTML */}
             <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-gray-900">
               {cleanContent ? (
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]} 
-                  components={markdownComponents}
-                >
-                  {cleanContent}
-                </ReactMarkdown>
+                isHtmlContent(cleanContent) ? (
+                  <IframeHtml
+                    html={cleanContent}
+                    className="w-full border-0"
+                    minHeight={80}
+                  />
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {cleanContent}
+                  </ReactMarkdown>
+                )
               ) : isGenerating ? (
                 <div
                   className="text-gray-400 text-sm leading-none pl-1 py-1 min-h-[1.5rem] flex items-center animate-pulse select-none italic"
