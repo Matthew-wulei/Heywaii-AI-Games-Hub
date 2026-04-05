@@ -13,6 +13,7 @@ import { MessageCircle, Heart, Clock, Image as ImageIcon, UserPlus } from "lucid
 import { CharacterDetailClient } from "./CharacterDetailClient";
 import { InteractionButtons } from "@/components/character/InteractionButtons";
 import { CharacterComments } from "@/components/character/CharacterComments";
+import { IframeHtml } from "@/components/character/IframeHtml";
 
 function capCategory(slug: string) {
   if (!slug) return "";
@@ -266,9 +267,9 @@ export default async function CharacterDetailPage({ params }: Props) {
                 <div className="bg-background-elevated p-5 rounded-2xl border border-white/5">
                   <div className="text-sm text-text-muted mb-2">About</div>
                   {ch.introduction?.trim() ? (
-                    <div
-                      className="w-full overflow-hidden rounded-2xl"
-                      dangerouslySetInnerHTML={{ __html: ch.introduction }}
+                    <IframeHtml
+                      html={ch.introduction}
+                      className="w-full border-0 rounded-2xl overflow-hidden"
                     />
                   ) : (
                     <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{ch.description}</p>

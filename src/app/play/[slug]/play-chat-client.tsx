@@ -1,6 +1,6 @@
 "use client";
-
 import { useState, useRef, useEffect, useMemo } from "react";
+import { ChatMessage } from "@/components/chat/ChatMessage";
 import {
   Send,
   Settings,
@@ -119,55 +119,17 @@ export function PlayChatClient({
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 z-10 no-scrollbar">
           {messages.map((msg, i) => (
-            <div
-              key={"id" in msg && msg.id ? String(msg.id) : i}
-              className={cn(
-                "flex gap-4 max-w-[85%]",
-                msg.role === "user" ? "ml-auto flex-row-reverse" : ""
-              )}
-            >
-              <div
-                className={cn(
-                  "w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg",
-                  msg.role === "user" ? "bg-white/10" : "bg-gradient-primary"
-                )}
-              >
-                {msg.role === "assistant" && (
-                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                )}
-              </div>
-
-              <div
-                className={cn(
-                  "px-4 md:px-5 py-3 md:py-4 rounded-2xl md:rounded-3xl shadow-sm text-sm md:text-base leading-relaxed whitespace-pre-wrap",
-                  msg.role === "user"
-                    ? "bg-white/10 text-white rounded-tr-sm border border-white/5"
-                    : "bg-background-elevated/80 backdrop-blur-sm text-text-primary rounded-tl-sm border border-white/5"
-                )}
-              >
-                {msg.content}
-
-                {msg.role === "assistant" && i === messages.length - 1 && !isLoading && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleInteractiveChoice("Look around")}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
-                    >
-                      Look around
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleInteractiveChoice("Check inventory")}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
-                    >
-                      Check inventory
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ChatMessage
+              key={"id" in msg && msg.id ? String(msg.id) : String(i)}
+              id={"id" in msg && msg.id ? String(msg.id) : String(i)}
+              role={msg.role as "user" | "assistant"}
+              content={msg.content}
+              avatarUrl={msg.role === "assistant" ? (character?.avatar ?? undefined) : undefined}
+              characterName={msg.role === "assistant" ? (character?.name ?? gameTitle) : undefined}
+              isGenerating={isLoading && i === messages.length - 1 && msg.role === "assistant"}
+            />
           ))}
+
           <div ref={messagesEndRef} />
         </div>
 
