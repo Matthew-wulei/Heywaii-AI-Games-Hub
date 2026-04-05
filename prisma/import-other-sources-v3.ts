@@ -175,6 +175,8 @@ function extractRoleplayFields(
   const introduction = clipDbText(
     coalesceStr(
       langData.introduction,
+      data.codeRenderContent,        // CrushOn: HTML card
+      rawItem.codeRenderContent,
       data.introduction,
       rawItem.introduction,
       rawNested?.introduction,
@@ -417,6 +419,7 @@ async function main() {
           await prisma.character.update({
             where: { id: existing.id },
             data: {
+              sourceUrl: originalId || file,
               greeting: greeting || existing.greeting,
               description: description.substring(0, 5000),
               gender: genderStr || existing.gender,
